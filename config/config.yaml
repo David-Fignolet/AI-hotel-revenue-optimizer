@@ -1,11 +1,17 @@
+version: "1.0.0"
+
 llm:
   model: "mistral:7b-instruct"
   temperature: 0.7
+  max_tokens: 1000
 
 hotel:
-  name: "Mon Hôtel"
+  name: "Hôtel de Luxe"
   category: "4 étoiles"
-  total_rooms: 100
+  total_rooms: 120
+  location:
+    city: "Paris"
+    country: "France"
 
 competitor_analysis:
   update_frequency: "daily"
