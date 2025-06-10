@@ -1,0 +1,16 @@
+# Configuration du gestionnaire LLM
+llm_providers:
+  ollama:
+    enabled: true
+    base_url: "http://localhost:11434"
+    models:
+      - name: "llama2:13b"
+        description: "Llama 2 13B - Bon équilibre performance/qualité"
+      - name: "mistral:7b-instruct"
+        description: "Mistral 7B - Rapide et efficace"
+
+default:
+  provider: "ollama"
+  model: "mistral:7b-instruct"
+  temperature: 0.7
+  max_tokens: 2048
