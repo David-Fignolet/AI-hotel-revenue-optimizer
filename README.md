@@ -341,3 +341,167 @@ Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de 
 **⭐ N'hésitez pas à donner une étoile si ce projet vous aide ! ⭐**
 
 </div>
+
+# Hotel Revenue Optimizer avec IA locale
+# Dépendances pour l'optimisation des revenus hôteliers avec LLMs locaux
+
+# === CORE DEPENDENCIES ===
+# Interface utilisateur et visualisation
+streamlit>=1.32.0
+plotly>=5.15.0
+matplotlib>=3.8.0
+seaborn>=0.13.0
+
+# Traitement de données
+pandas>=2.1.0
+numpy>=1.26.0
+python-dateutil>=2.8.2
+pytz>=2023.3
+
+# Machine Learning traditionnel
+scikit-learn>=1.3.0
+joblib>=1.3.0
+scipy>=1.11.0
+
+# === AI/LLM DEPENDENCIES ===
+# Support LLMs locaux
+requests>=2.31.0
+aiohttp>=3.8.4
+
+# LangChain pour intégration LLM (optionnel mais recommandé)
+langchain>=0.1.0
+langchain-community>=0.0.20
+
+# Support pour différents providers LLM
+# Ollama (recommandé - pas de dépendance Python spécifique)
+# HuggingFace Transformers (optionnel)
+transformers>=4.35.0
+torch>=2.1.0
+accelerate>=0.24.0
+sentencepiece>=0.1.99
+
+# Support GPU (optionnel)
+# torch[cuda] # Décommentez pour support CUDA
+# bitsandbytes>=0.41.0 # Pour quantization 8-bit
+
+# === WEB & API ===
+# API REST (si utilisée)
+fastapi>=0.95.0
+uvicorn>=0.21.0
+python-multipart>=0.0.6
+
+# === DATABASE & CACHE ===
+# Base de données
+sqlalchemy>=2.0.0
+alembic>=1.10.0
+sqlite3worker>=0.8.0  # Pour SQLite thread-safe
+
+# Cache (optionnel)
+redis>=4.5.0
+aioredis>=2.0.0
+
+# === AUTHENTICATION & SECURITY ===
+# Authentification (optionnel)
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+python-dotenv>=1.0.0
+
+# === DATA PROCESSING ===
+# Formats de fichiers
+tabula-py>=2.10.0  # Pour PDF
+openpyxl>=3.1.0    # Pour Excel
+xlrd>=2.0.1        # Pour anciens Excel
+
+# === UTILITIES ===
+# Utilities générales
+pathlib2>=2.3.7
+typing-extensions>=4.7.0
+pydantic>=2.0.0
+
+# Configuration
+pydantic-settings>=2.0.0
+python-decouple>=3.8
+
+# Logging et monitoring
+loguru>=0.7.0
+
+# === DEVELOPMENT & TESTING ===
+# Tests (pour développement)
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-asyncio>=0.21.0
+pytest-mock>=3.12.0
+
+# Code quality (pour développement)
+black>=23.0.0
+isort>=5.12.0
+flake8>=6.0.0
+mypy>=1.5.0
+
+# === DEPLOYMENT ===
+# Déploiement
+gunicorn>=21.0.0
+docker>=6.1.0
+
+# === PLATFORM SPECIFIC ===
+# Windows
+pywin32>=306; sys_platform == "win32"
+
+# === OPTIONAL ENHANCEMEMNTS ===
+# Analyse de données avancée (optionnel)
+statsmodels>=0.14.0
+prophet>=1.1.4  # Pour séries temporelles
+dask>=2023.9.0  # Pour traitement parallèle
+
+# Visualisations avancées (optionnel)
+bokeh>=3.2.0
+altair>=5.1.0
+
+# Géolocalisation (optionnel)
+geopy>=2.3.0
+folium>=0.14.0
+
+# === SPECIFIC LLM MODELS SUPPORT ===
+# Support modèles spécifiques (installer selon besoins)
+
+# Pour Mistral
+# mistral-common>=1.0.0
+
+# Pour Llama
+# llama-cpp-python>=0.2.0
+
+# Pour quantization avancée
+# optimum>=1.14.0
+# auto-gptq>=0.5.0
+
+# === MONITORING & LOGGING ===
+# Production monitoring (optionnel)
+# sentry-sdk>=1.38.0
+# prometheus-client>=0.18.0
+
+# === JUPYTER SUPPORT ===
+# Support notebooks (développement)
+jupyter>=1.0.0
+ipykernel>=6.25.0
+notebook>=7.0.0
+
+# === NOTES D'INSTALLATION ===
+# 
+# Installation recommandée:
+# 1. pip install -r requirements_ai.txt
+# 2. python scripts/setup_ai_local.py
+# 
+# Installation minimale (sans IA):
+# pip install streamlit pandas numpy plotly scikit-learn
+# 
+# Installation complète avec GPU:
+# pip install -r requirements_ai.txt
+# pip install torch[cuda] --index-url https://download.pytorch.org/whl/cu118
+# 
+# Pour production:
+# pip install -r requirements_ai.txt --no-dev
+# 
+# Pour développement:
+# pip install -r requirements_ai.txt
+# pip install -e .
+#
