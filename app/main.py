@@ -19,11 +19,14 @@ st.set_page_config(
 )
 
 # Charger la configuration
-@st.cache_data
+@st.cache_resource
 def load_config():
-    config_path = BASE_DIR / "config" / "config.yaml"
-    with open(config_path, 'r', encoding='utf-8') as f:
-        return yaml.safe_load(f)
+    try:
+        from src.hotel_profile.hotel_config import HotelProfileManager
+        return HotelProfileManager()._load_config()
+    except ImportError as e:
+        st.error(f"Erreur lors du chargement du profil: {str(e)}")
+        return {}
 
 # Style personnalisé
 def load_css():
