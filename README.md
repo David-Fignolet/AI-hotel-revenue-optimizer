@@ -330,7 +330,7 @@ Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de 
 *Data Analyst & Expert Hôtellerie (20 ans d'expérience)*
 
 - LinkedIn: [linkedin.com/in/david-michel-larrieux](https://linkedin.com)
-- GitHub: [@David-Fignolet](https://github.com/David-Fignoley)
+- GitHub: [@David-Fignolet](https://github.com/David-Fignolet)
 
 ## 🙏 Remerciements
 
