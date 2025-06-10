@@ -1,18 +1,13 @@
-# config/config.yaml
 llm:
-  provider: ollama
-  model: mistral:7b-instruct
+  model: "mistral:7b-instruct"
   temperature: 0.7
 
 hotel:
   name: "Mon Hôtel"
   category: "4 étoiles"
   total_rooms: 100
-  location:
-    lat: 48.8566
-    lng: 2.3522  # Paris par défaut
 
-competitors:
-  update_frequency: 3600  # secondes
-  max_competitors: 10
+competitor_analysis:
+  update_frequency: "daily"
+  max_competitors: 5
   search_radius_km: 5

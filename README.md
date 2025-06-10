@@ -2290,304 +2290,116 @@ GOOGLE_API_KEY=votre_cle_google_places
 GOOGLE_MAPS_API_KEY=votre_cle_google_maps
 
 # Base de données
-DATABASE_URL=postgresql://user:password@localhost/hotel_optimizer
-
-# Autres
-ENVIRONMENT=development
-DEBUG=True
-```
-
-## 🚀 Lancement du Projet Amélioré
-
-1. **Installation des nouvelles dépendances**
-```bash
-pip install -r requirements_v2.txt
-```
-
-2. **Configuration de l'environnement**
-```bash
-cp .env.example .env
-# Éditer .env avec vos clés API
-```
-
-3. **Première configuration**
-```bash
-# Lancer l'app et configurer votre hôtel
-streamlit run app/streamlit_app_v2.py
-```
-
-## 📈 Fonctionnalités Clés
-
-### 1. **Revenue Manager IA**
-- Analyse en temps réel de la situation
-- Recommandations personnalisées
-- Stratégies adaptatives
-- Apprentissage continu
-
-### 2. **Veille Concurrentielle Automatisée**
-- Identification des concurrents similaires
-- Scraping des prix en temps réel
-- Alertes de changements tarifaires
-- Analyse comparative
-
-### 3. **Configuration Personnalisée**
-- Profil détaillé de l'établissement
-- Règles business spécifiques
-- Contraintes tarifaires
-- Objectifs personnalisés
-
-### 4. **Dashboard Enrichi**
-- Vue 360° du revenue management
-- Prévisions intelligentes
-- Actions recommandées
-- Suivi des performances
-
-## 🎯 Prochaines Étapes
-
-1. **Intégration PMS** : Connexion directe avec votre Property Management System
-2. **Machine Learning Avancé** : Modèles personnalisés par établissement
-3. **Alertes Temps Réel** : Notifications push pour opportunités critiques
-4. **API REST** : Pour intégration avec d'autres systèmes
-5. **Marketplace** : Partage de stratégies entre hôtels similaires
-
-Cette architecture transforme votre projet en une solution professionnelle de revenue management, combinant l'expertise humaine avec l'intelligence artificielle pour maximiser les revenus hôteliers. 🚀
-
-# 🚀 Guide de Démarrage - Hotel Revenue Optimizer
-
-## 📋 Étapes Rapides (Solution Recommandée)
-
-### 1. **Prérequis**
-```bash
-# Vérifier Python (3.8+ requis)
-python --version
-
-# Installer Java (requis pour le traitement PDF)
-# Windows: Télécharger depuis https://www.java.com/fr/download/
-# macOS: brew install openjdk
-# Ubuntu: sudo apt install default-jre
-java -version
-```
-
-### 2. **Installation**
-```bash
-# Cloner le projet
-git clone https://github.com/votre-username/hotel-revenue-optimizer.git
-cd hotel-revenue-optimizer
-
-# Créer l'environnement virtuel
-python -m venv venv
-
-# Activer l'environnement
-# Windows:
-venv\Scripts\activate
-# macOS/Linux:
-source venv/bin/activate
-
-# Installer les dépendances
-pip install -r requirements.txt
-```
-
-### 3. **Créer les Données d'Exemple**
-```bash
-# Générer des données de test
-python create_sample_data.py
-```
-
-### 4. **Lancer l'Application**
-```bash
-# Démarrer l'interface Streamlit
-streamlit run app/streamlit_app.py
-```
-
-**✅ Succès !** L'application sera accessible sur `http://localhost:8501`
-
----
-
-## 🔧 Solutions aux Problèmes Courants
-
-### ❌ **Erreur : Module 'tabula' not found**
-```bash
-# Solution 1: Installer tabula-py
-pip install tabula-py
-
-# Solution 2: Si Java manque
-# Windows: Installer Java JDK/JRE
-# macOS: brew install openjdk
-# Linux: sudo apt install default-jre
-```
-
-### ❌ **Erreur : Module 'src' not found**
-```bash
-# Solution: Ajouter le répertoire au PYTHONPATH
-export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-
-# Ou lancer depuis le script main.py
-python main.py
-```
-
-### ❌ **Erreur : Port 8501 already in use**
-```bash
-# Solution: Utiliser un autre port
-streamlit run app/streamlit_app.py --server.port 8502
-```
-
----
-
-## 🐳 Alternative : Docker (Plus Simple)
-
-### **Option Docker (Recommandée si vous avez Docker)**
-```bash
-# Build l'image
-docker build -t hotel-revenue-optimizer .
-
-# Lancer le conteneur
-docker run -p 8501:8501 hotel-revenue-optimizer
-
-# Ou avec Docker Compose
-docker-compose up --build
-```
-
----
-
-## 🔄 Autres Options de Lancement
-
-### **Option 1: Script Principal**
-```bash
-python main.py
-```
-
-### **Option 2: API FastAPI (Développeurs)**
-```bash
-# Lancer l'API REST
-python src/main.py
-
-# API accessible sur http://localhost:8000
-# Documentation API: http://localhost:8000/api/docs
-```
-
-### **Option 3: Mode Développement**
-```bash
-# Avec rechargement automatique
-streamlit run app/streamlit_app.py --server.runOnSave true
-```
-
----
-
-## 📁 Test avec Vos Propres Données
-
-### **Format CSV Attendu**
-Créez un fichier CSV avec ces colonnes :
-```csv
-date,price,occupancy_rate
-2023-01-01,120.50,0.65
-2023-01-02,115.75,0.58
-2023-01-03,112.30,0.52
-```
-
-### **Format PDF**
-- Le système peut traiter les rapports PDF d'hôtels
-- Placez votre PDF dans le dossier et utilisez l'interface de téléchargement
-
----
-
-## 🎯 Première Utilisation
-
-### **1. Interface Web**
-1. Ouvrez `http://localhost:8501`
-2. Utilisez la sidebar pour télécharger un fichier CSV/PDF
-3. Ou utilisez les données d'exemple incluses
-4. Explorez les prédictions et recommandations
-
-### **2. Fonctionnalités Disponibles**
-- 📊 **Dashboard** : Métriques clés et KPIs
-- 🔮 **Prédictions** : Prévisions d'occupation 30 jours
-- 💰 **Pricing** : Recommandations de prix optimal
-- 📈 **Analyses** : Tendances et insights
-
----
-
-## ⚙️ Configuration Avancée
-
-### **Variables d'Environnement** (Optionnel)
-```bash
-# Créer le fichier .env
-cp .env.example .env
-
-# Modifier selon vos besoins
-DATABASE_URL=sqlite:///./hotel_revenue.db
-REDIS_URL=redis://localhost:6379/0
-DEBUG=True
-```
-
-### **Base de Données** (Optionnel)
-```bash
-# Initialiser la DB (si vous utilisez l'API)
-python -c "from src.data.database import init_db; init_db()"
-```
-
----
-
-## 🧪 Vérifier l'Installation
-
-### **Tests Rapides**
-```bash
-# Tester les modules principaux
-python -c "import pandas, numpy, plotly, streamlit; print('✅ Modules OK')"
-
-# Lancer les tests (optionnel)
-pytest tests/ -v
-```
-
-### **Test de Fonctionnement**
-```python
-# Test Python rapide
-python -c "
-from src.demand_forecasting import DemandForecaster
-from src.pricing_engine import PricingEngine
-print('✅ Modules métier OK')
-"
-```
-
----
-
-## 🆘 Support et Dépannage
-
-### **Logs et Debug**
-```bash
-# Lancer avec logs détaillés
-streamlit run app/streamlit_app.py --logger.level debug
-
-# Voir les logs d'erreur
-tail -f logs/app.log
-```
-
-### **Réinstallation Propre**
-```bash
-# Nettoyer et réinstaller
-rm -rf venv
-python -m venv venv
-source venv/bin/activate  # ou venv\Scripts\activate sur Windows
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-### **Problèmes Fréquents**
-| Problème | Solution |
-|----------|----------|
-| Import errors | `export PYTHONPATH="${PYTHONPATH}:$(pwd)"` |
-| Port occupé | Changer le port : `--server.port 8502` |
-| Java manquant | Installer JRE/JDK |
-| Modules manquants | `pip install -r requirements.txt` |
-| Permissions | Utiliser `sudo` sur Linux/macOS |
-
----
-
-## 🎉 Prêt à Utiliser !
-
-Une fois l'application lancée :
-1. **Naviguez** vers `http://localhost:8501`
-2. **Téléchargez** vos données ou utilisez l'exemple
-3. **Explorez** les prédictions et recommandations
-4. **Optimisez** vos revenus hôteliers !
-
-**Besoin d'aide ?** Consultez la documentation ou ouvrez une issue sur GitHub.
+sqlalchemy>=2.0.0
+alembic>=1.10.0
+sqlite3worker>=0.8.0  # Pour SQLite thread-safe
+
+# Cache (optionnel)
+redis>=4.5.0
+aioredis>=2.0.0
+
+# === AUTHENTICATION & SECURITY ===
+# Authentification (optionnel)
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+python-dotenv>=1.0.0
+
+# === DATA PROCESSING ===
+# Formats de fichiers
+tabula-py>=2.10.0  # Pour PDF
+openpyxl>=3.1.0    # Pour Excel
+xlrd>=2.0.1        # Pour anciens Excel
+
+# === UTILITIES ===
+# Utilities générales
+pathlib2>=2.3.7
+typing-extensions>=4.7.0
+pydantic>=2.0.0
+
+# Configuration
+pydantic-settings>=2.0.0
+python-decouple>=3.8
+
+# Logging et monitoring
+loguru>=0.7.0
+
+# === DEVELOPMENT & TESTING ===
+# Tests (pour développement)
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-asyncio>=0.21.0
+pytest-mock>=3.12.0
+
+# Code quality (pour développement)
+black>=23.0.0
+isort>=5.12.0
+flake8>=6.0.0
+mypy>=1.5.0
+
+# === DEPLOYMENT ===
+# Déploiement
+gunicorn>=21.0.0
+docker>=6.1.0
+
+# === PLATFORM SPECIFIC ===
+# Windows
+pywin32>=306; sys_platform == "win32"
+
+# === OPTIONAL ENHANCEMEMNTS ===
+# Analyse de données avancée (optionnel)
+statsmodels>=0.14.0
+prophet>=1.1.4  # Pour séries temporelles
+dask>=2023.9.0  # Pour traitement parallèle
+
+# Visualisations avancées (optionnel)
+bokeh>=3.2.0
+altair>=5.1.0
+
+# Géolocalisation (optionnel)
+geopy>=2.3.0
+folium>=0.14.0
+
+# === SPECIFIC LLM MODELS SUPPORT ===
+# Support modèles spécifiques (installer selon besoins)
+
+# Pour Mistral
+# mistral-common>=1.0.0
+
+# Pour Llama
+# llama-cpp-python>=0.2.0
+
+# Pour quantization avancée
+# optimum>=1.14.0
+# auto-gptq>=0.5.0
+
+# === MONITORING & LOGGING ===
+# Production monitoring (optionnel)
+# sentry-sdk>=1.38.0
+# prometheus-client>=0.18.0
+
+# === JUPYTER SUPPORT ===
+# Support notebooks (développement)
+jupyter>=1.0.0
+ipykernel>=6.25.0
+notebook>=7.0.0
+
+# === NOTES D'INSTALLATION ===
+# 
+# Installation recommandée:
+# 1. pip install -r requirements_ai.txt
+# 2. python scripts/setup_ai_local.py
+# 
+# Installation minimale (sans IA):
+# pip install streamlit pandas numpy plotly scikit-learn
+# 
+# Installation complète avec GPU:
+# pip install -r requirements_ai.txt
+# pip install torch[cuda] --index-url https://download.pytorch.org/whl/cu118
+# 
+# Pour production:
+# pip install -r requirements_ai.txt --no-dev
+# 
+# Pour développement:
+# pip install -r requirements_ai.txt
+# pip install -e .
+#

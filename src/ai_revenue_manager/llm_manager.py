@@ -8,6 +8,16 @@ import pandas as pd
 from datetime import datetime, timedelta
 import numpy as np
 import os
+# Dans src/ai_revenue_manager/llm_manager.py
+from langchain_community.llms import Ollama
+
+class AIRevenueManager:
+    def _initialize_llm(self):
+        """Initialise le modèle Ollama localement"""
+        return Ollama(
+            model=self.config['llm']['model'],
+            temperature=self.config['llm']['temperature']
+        )
 
 class AIRevenueManager:
     """
