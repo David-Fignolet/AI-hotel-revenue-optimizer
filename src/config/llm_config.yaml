@@ -1,0 +1,30 @@
+# Configuration du LLM Revenue Manager
+llm:
+  model: "gpt-4"
+  temperature: 0.3
+  max_tokens: 2000
+  top_p: 0.9
+
+# Configuration de l'hôtel par défaut
+hotel:
+  name: "Hotel Revenue Optimizer"
+  category: "4 étoiles"
+  location: "Centre-ville"
+  rooms:
+    standard: 80
+    premium: 20
+    suite: 5
+
+# Contraintes business par défaut
+business_rules:
+  min_price_standard: 80
+  max_price_standard: 300
+  min_occupancy_threshold: 30
+  crisis_detection_threshold: 25
+  premium_event_multiplier: 1.35
+
+# Seuils d'alerte
+alerts:
+  low_occupancy: 40
+  high_competitor_gap: 15
+  booking_pace_variance: 20

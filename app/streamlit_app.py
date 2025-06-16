@@ -13,6 +13,11 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from src.ai_revenue_manager.llm_manager import AIRevenueManager
 
 # Ajouter le répertoire parent au PYTHONPATH
 sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
@@ -348,6 +353,65 @@ def run_app():
                 st.error(f"Erreur lors du chargement du tableau de bord : {str(e)}")
     else:
         st.warning("Aucune donnée à afficher. Veuillez charger un fichier valide.")
+    # Nouveau: Section AI Revenue Manager
+    if st.sidebar.checkbox("🤖 Activer AI Revenue Manager"):
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("### 🧠 AI Revenue Manager")
+        
+        # Initialiser le manager IA
+        if 'ai_manager' not in st.session_state:
+            st.session_state.ai_manager = AIRevenueManager()
+        
+        # Bouton d'analyse IA
+        if st.sidebar.button("🔮 Analyser avec IA"):
+            with st.spinner("L'IA analyse la situation..."):
+                # Construire les données pour l'IA
+                hotel_data = {
+                    'occupancy_rate': 0.72,
+                    'current_price': 175,
+                    'min_price': 80,
+                    'max_price': 300
+                }
+                
+                market_data = {
+                    'competitor_prices': [180, 190, 165, 185],
+                    'events': ['Salon du tourisme'],
+                    'weather': 'Ensoleillé'
+                }
+                
+                # Obtenir l'analyse IA
+                ai_analysis = st.session_state.ai_manager.analyze_situation(
+                    hotel_data, market_data
+                )
+                
+                # Afficher les résultats
+                st.subheader("🤖 Analyse IA Revenue Manager")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.metric(
+                        "Prix Recommandé", 
+                        f"{ai_analysis['analysis']['recommended_price']:.0f}€"
+                    )
+                
+                with col2:
+                    st.metric(
+                        "Niveau de Confiance", 
+                        f"{ai_analysis['analysis']['confidence_score']:.0%}"
+                    )
+                
+                # Afficher l'analyse complète
+                st.text_area(
+                    "Analyse Détaillée",
+                    ai_analysis['analysis']['summary'],
+                    height=200
+                )
+                
+                # Actions recommandées
+                st.subheader("📋 Actions Recommandées")
+                for i, action in enumerate(ai_analysis['analysis']['recommended_actions'], 1):
+                    st.write(f"{i}. {action}")
 
 if __name__ == "__main__":
     run_app()
