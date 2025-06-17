@@ -8,7 +8,10 @@ import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler
 import joblib
+import os
 from datetime import datetime, timedelta
 import warnings
 warnings.filterwarnings('ignore')
@@ -21,95 +24,125 @@ class DemandForecaster:
     pour prédire le taux d'occupation futur.
     """
     
-    def __init__(self):
+    def __init__(self, **kwargs):
+        """
+        Initialise le modèle de prédiction avec les paramètres spécifiés
+        
+        Args:
+            **kwargs: Paramètres du modèle RandomForestRegressor
+        """
         self.model = RandomForestRegressor(
-            n_estimators=100,
-            max_depth=10,
-            random_state=42,
-            n_jobs=-1
+            **{**{
+                'n_estimators': 100,
+                'max_depth': 10,
+                'random_state': 42,
+                'n_jobs': -1
+            }, **kwargs}
         )
+        self.imputer = SimpleImputer(strategy='mean')
+        self.scaler = StandardScaler()
         self.features = None
         self.is_trained = False
         
-    def create_features(self, df):
+    def prepare_features(self, df, target_column='occupancy_rate'):
         """
-        Création des features temporelles et contextuelles
+        Prépare les features pour l'entraînement ou la prédiction
         
         Args:
-            df (pd.DataFrame): Données brutes avec colonnes date, occupancy_rate
+            df (pd.DataFrame): Données brutes
+            target_column (str): Nom de la colonne cible
             
         Returns:
-            pd.DataFrame: DataFrame avec features engineered
+            tuple: (X, y) ou (X, None) si pas de target
         """
         df = df.copy()
+        
+        # Ensure date column is datetime
         df['date'] = pd.to_datetime(df['date'])
-        df = df.sort_values('date')
         
-        # Features temporelles
-        df['day_of_week'] = df['date'].dt.dayofweek
+        # Extract temporal features
         df['month'] = df['date'].dt.month
-        df['week_of_year'] = df['date'].dt.isocalendar().week
-        df['is_weekend'] = (df['day_of_week'] >= 5).astype(int)
-        df['is_summer'] = ((df['month'] >= 6) & (df['month'] <= 8)).astype(int)
-        df['is_winter'] = ((df['month'] == 12) | (df['month'] <= 2)).astype(int)
+        df['day'] = df['date'].dt.day
+        df['dayofweek'] = df['date'].dt.dayofweek
         
-        # Features cycliques
-        df['day_sin'] = np.sin(2 * np.pi * df['day_of_week'] / 7)
-        df['day_cos'] = np.cos(2 * np.pi * df['day_of_week'] / 7)
-        df['month_sin'] = np.sin(2 * np.pi * df['month'] / 12)
-        df['month_cos'] = np.cos(2 * np.pi * df['month'] / 12)
+        # Features temporelles cycliques
+        def create_cyclical_features(df, col, period):
+            values = df[col] * (2 * np.pi / period)
+            return np.sin(values), np.cos(values)
         
-        # Lag features (données historiques)
-        for lag in [1, 7, 14, 30]:
-            df[f'occupancy_lag_{lag}'] = df['occupancy_rate'].shift(lag)
-            
-        # Rolling statistics
-        for window in [7, 14, 30]:
-            df[f'occupancy_ma_{window}'] = df['occupancy_rate'].rolling(window=window).mean()
-            df[f'occupancy_std_{window}'] = df['occupancy_rate'].rolling(window=window).std()
-            
-        # Features événements (simulées)
-        df['has_event'] = np.random.choice([0, 1], size=len(df), p=[0.8, 0.2])
-        df['event_impact'] = df['has_event'] * np.random.uniform(0.1, 0.3, len(df))
+        # Month features (1-12)
+        df['month_sin'], df['month_cos'] = create_cyclical_features(df, 'month', 12)
         
-        # Features météo (simulées)
-        df['temperature'] = 15 + 10 * np.sin(2 * np.pi * df['month'] / 12) + np.random.normal(0, 3, len(df))
-        df['is_rain'] = np.random.choice([0, 1], size=len(df), p=[0.7, 0.3])
+        # Day features (1-31)
+        df['day_sin'], df['day_cos'] = create_cyclical_features(df, 'day', 31)
         
-        return df.dropna()
-    
-    def prepare_features(self, df):
-        """Prépare les features pour l'entraînement/prédiction"""
+        # Weekday features (0-6)
+        df['dayofweek_sin'], df['dayofweek_cos'] = create_cyclical_features(df, 'dayofweek', 7)
+        
+        # Weekend flag
+        df['is_weekend'] = df['dayofweek'].isin([5, 6]).astype(int)
+        
+        # Holiday flag (à implémenter avec un calendrier)
+        df['is_holiday'] = 0
+        df['is_school_holiday'] = 0
+        
+        # Lag features for the target if available
+        if target_column in df.columns:
+            for lag in [1, 7, 30]:
+                df[f'{target_column}_lag_{lag}'] = df[target_column].shift(lag)
+        
+        # Select features
         feature_cols = [
-            'day_of_week', 'month', 'week_of_year', 'is_weekend', 
-            'is_summer', 'is_winter', 'day_sin', 'day_cos', 
-            'month_sin', 'month_cos', 'occupancy_lag_1', 'occupancy_lag_7',
-            'occupancy_lag_14', 'occupancy_lag_30', 'occupancy_ma_7',
-            'occupancy_ma_14', 'occupancy_ma_30', 'occupancy_std_7',
-            'occupancy_std_14', 'occupancy_std_30', 'has_event',
-            'event_impact', 'temperature', 'is_rain'
+            'month_sin', 'month_cos', 'day_sin', 'day_cos',
+            'dayofweek_sin', 'dayofweek_cos', 'is_weekend',
+            'is_holiday', 'is_school_holiday'
         ]
         
-        self.features = feature_cols
-        return df[feature_cols], df['occupancy_rate']
+        if target_column in df.columns:
+            lag_cols = [f'{target_column}_lag_{lag}' for lag in [1, 7, 30]]
+            feature_cols.extend(lag_cols)
+            y = df[target_column].copy()
+        else:
+            y = None
+            
+        X = df[feature_cols].copy()
+        
+        # Handle missing values
+        if self.is_trained:
+            X = pd.DataFrame(self.imputer.transform(X), columns=X.columns, index=X.index)
+            X = pd.DataFrame(self.scaler.transform(X), columns=X.columns, index=X.index)
+        else:
+            X = pd.DataFrame(self.imputer.fit_transform(X), columns=X.columns, index=X.index)
+            X = pd.DataFrame(self.scaler.fit_transform(X), columns=X.columns, index=X.index)
+            
+        return X, y
     
-    def train(self, df):
+    def train(self, df, feature_columns=None, target_column='occupancy_rate', room_type=None, save_model=False):
         """
-        Entraîne le modèle de prédiction de demande
+        Entraîne le modèle sur les données historiques
         
         Args:
             df (pd.DataFrame): Données d'entraînement
+            feature_columns (list): Liste optionnelle de colonnes features
+            target_column (str): Nom de la colonne cible
+            room_type (str): Type de chambre à modéliser (optionnel)
+            save_model (bool): Sauvegarder le modèle après entraînement
+            
+        Returns:
+            float: Erreur moyenne absolue sur validation
         """
-        print("🔄 Création des features...")
-        df_features = self.create_features(df)
+        if room_type:
+            df = df[df['room_type'] == room_type].copy()
         
-        print("📊 Préparation des données...")
-        X, y = self.prepare_features(df_features)
+        # Préparer les features
+        X, y = self.prepare_features(df, target_column)
         
-        print("🤖 Entraînement du modèle...")
-        # Validation croisée temporelle
+        if y is None:
+            raise ValueError("La colonne cible n'est pas présente dans les données")
+        
+        # Entraînement avec validation temporelle
         tscv = TimeSeriesSplit(n_splits=5)
-        mae_scores = []
+        maes = []
         
         for train_idx, val_idx in tscv.split(X):
             X_train, X_val = X.iloc[train_idx], X.iloc[val_idx]
@@ -117,97 +150,46 @@ class DemandForecaster:
             
             self.model.fit(X_train, y_train)
             y_pred = self.model.predict(X_val)
-            mae = mean_absolute_error(y_val, y_pred)
-            mae_scores.append(mae)
+            
+            maes.append(mean_absolute_error(y_val, y_pred))
         
         # Entraînement final sur toutes les données
         self.model.fit(X, y)
+        self.features = X.columns.tolist()
         self.is_trained = True
         
-        print(f"✅ Modèle entraîné - MAE moyen: {np.mean(mae_scores):.4f}")
-        return np.mean(mae_scores)
+        return np.mean(maes)
     
-    def predict_demand(self, start_date, days=30, room_type='Standard'):
+    def predict(self, df):
         """
-        Prédit la demande pour les prochains jours
+        Fait des prédictions sur de nouvelles données
         
         Args:
-            start_date (str): Date de début (YYYY-MM-DD)
-            days (int): Nombre de jours à prédire
-            room_type (str): Type de chambre
+            df (pd.DataFrame): Données pour la prédiction
             
         Returns:
-            pd.DataFrame: Prédictions avec intervalles de confiance
+            np.array: Prédictions
         """
         if not self.is_trained:
-            raise ValueError("Le modèle n'est pas entraîné. Utilisez train() d'abord.")
-        
-        # Création des dates futures
-        start = pd.to_datetime(start_date)
-        dates = pd.date_range(start, periods=days, freq='D')
-        
-        # Simulation des données futures (à remplacer par vraies données)
-        future_data = []
-        for date in dates:
-            # Valeurs de base simulées
-            base_occupancy = 0.70 + 0.15 * np.sin(2 * np.pi * date.month / 12)
+            raise RuntimeError("Le modèle doit d'abord être entraîné")
             
-            future_data.append({
-                'date': date,
-                'occupancy_rate': base_occupancy,  # Sera mise à jour itérativement
-                'room_type': room_type
-            })
+        X, _ = self.prepare_features(df)
+        return self.model.predict(X)
         
-        df_future = pd.DataFrame(future_data)
-        
-        # Création des features
-        df_future = self.create_features(df_future)
-        X_future, _ = self.prepare_features(df_future)
-        
-        # Prédictions
-        predictions = self.model.predict(X_future)
-        
-        # Calcul des intervalles de confiance (approximation)
-        std_pred = np.std(predictions) * 0.1  # Estimation simplifiée
-        
-        results = pd.DataFrame({
-            'date': dates,
-            'predicted_occupancy': predictions,
-            'lower_bound': np.maximum(0, predictions - 1.96 * std_pred),
-            'upper_bound': np.minimum(1, predictions + 1.96 * std_pred),
-            'room_type': room_type
-        })
-        
-        return results
-    
-    def get_feature_importance(self):
-        """Retourne l'importance des features"""
-        if not self.is_trained:
-            return None
-            
-        importance_df = pd.DataFrame({
-            'feature': self.features,
-            'importance': self.model.feature_importances_
-        }).sort_values('importance', ascending=False)
-        
-        return importance_df
-    
-    def save_model(self, filepath):
+    def save_model(self, filepath='models/demand_forecaster.joblib'):
         """Sauvegarde le modèle"""
-        joblib.dump({
-            'model': self.model,
-            'features': self.features,
-            'is_trained': self.is_trained
-        }, filepath)
-        print(f"💾 Modèle sauvegardé: {filepath}")
-    
-    def load_model(self, filepath):
-        """Charge un modèle pré-entraîné"""
+        if not self.is_trained:
+            raise RuntimeError("Le modèle doit d'abord être entraîné")
+            
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        joblib.dump({'model': self.model, 'features': self.features}, filepath)
+        
+    def load_model(self, filepath='models/demand_forecaster.joblib'):
+        """Charge un modèle sauvegardé"""
         data = joblib.load(filepath)
         self.model = data['model']
         self.features = data['features']
-        self.is_trained = data['is_trained']
-        print(f"📂 Modèle chargé: {filepath}")
+        self.is_trained = True
 
 # Exemple d'utilisation
 if __name__ == "__main__":

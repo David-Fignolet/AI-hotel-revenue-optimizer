@@ -1,6 +1,5 @@
 """
 Module de visualisation pour le tableau de bord de revenue management
-Auteur: David Michel-Larrieux
 """
 
 import pandas as pd
@@ -16,321 +15,206 @@ class DashboardVisuals:
     """
     
     @staticmethod
-    def create_occupancy_forecast_chart(predictions):
+    def create_occupancy_forecast_chart(df, title, color_main='rgba(30, 136, 229, 0.8)', color_fill='rgba(30, 136, 229, 0.2)'):
         """
         Crée un graphique de prévision d'occupation avec intervalle de confiance
-        
-        Args:
-            predictions (pd.DataFrame): DataFrame avec colonnes date, predicted_occupancy, lower_bound, upper_bound
-            
-        Returns:
-            plotly.graph_objects.Figure: Figure Plotly
         """
         fig = go.Figure()
         
         # Zone de confiance
-        fig.add_trace(go.Scatter(
-            x=predictions['date'],
-            y=predictions['upper_bound']*100,
-            fill=None,
-            mode='lines',
-            line_color='rgba(0,100,80,0.2)',
-            name='Borne supérieure',
-            showlegend=False
-        ))
+        if 'upper_bound' in df.columns and 'lower_bound' in df.columns:
+            fig.add_trace(go.Scatter(
+                x=df['date'],
+                y=df['upper_bound']*100,
+                fill=None,
+                mode='lines',
+                line_color=color_main,
+                showlegend=False
+            ))
+            
+            fig.add_trace(go.Scatter(
+                x=df['date'],
+                y=df['lower_bound']*100,
+                fill='tonexty',
+                mode='lines',
+                line_color=color_main,
+                fillcolor=color_fill,
+                name='Intervalle de confiance'
+            ))
+            
+        # Ligne principale
+        occupancy_col = next((col for col in ['predicted_occupancy_rate', 'predicted_occupancy', 'occupancy_rate', 'occupancy'] if col in df.columns), None)
+        if occupancy_col:
+            fig.add_trace(go.Scatter(
+                x=df['date'],
+                y=df[occupancy_col]*100,
+                mode='lines',
+                name='Taux d\'occupation',
+                line=dict(color=color_main)
+            ))
+        
+        fig.update_layout(
+            title=title,
+            xaxis_title='Date',
+            yaxis_title='Taux d\'occupation',
+            template='plotly_white'
+        )
+        
+        return fig
+        
+    @staticmethod
+    def create_historical_trends_chart(df, title, y_title, color):
+        """Crée un graphique des tendances historiques"""
+        fig = go.Figure()
+        
+        occupancy_col = next((col for col in ['occupancy_rate', 'occupancy'] if col in df.columns), None)
+        if occupancy_col:
+            fig.add_trace(go.Scatter(
+                x=df['date'],
+                y=df[occupancy_col]*100,
+                mode='lines',
+                name='Historique',
+                line=dict(color=color)
+            ))
+        
+        fig.update_layout(
+            title=title,
+            xaxis_title='Date',
+            yaxis_title=y_title,
+            template='plotly_white'
+        )
+        
+        return fig
+        
+    @staticmethod
+    def create_price_sensitivity_chart(df, title, x_title, y_title):
+        """Crée un graphique de sensibilité aux prix"""
+        fig = go.Figure()
         
         fig.add_trace(go.Scatter(
-            x=predictions['date'],
-            y=predictions['lower_bound']*100,
-            fill='tonexty',
-            mode='lines',
-            line_color='rgba(0,100,80,0.2)',
-            name='Intervalle de confiance',
-            fillcolor='rgba(31,119,180,0.2)'
-        ))
-        
-        # Prédiction centrale
-        fig.add_trace(go.Scatter(
-            x=predictions['date'],
-            y=predictions['predicted_occupancy']*100,
+            x=df['price'],
+            y=df['demand'],
             mode='lines+markers',
-            name='Occupation prédite',
-            line=dict(color='#1f77b4', width=3)
+            name='Demande',
+            line=dict(color='rgba(30, 136, 229, 0.8)')
         ))
         
-        # Ligne à 80% d'occupation (seuil d'alerte)
-        fig.add_hline(
-            y=80,
-            line_dash="dash",
-            line_color="red",
-            annotation_text="Seuil d'alerte (80%)",
-            annotation_position="bottom right"
-        )
-        
         fig.update_layout(
-            title="Prévision d'occupation sur 30 jours",
-            xaxis_title="Date",
-            yaxis_title="Taux d'occupation (%)",
-            hovermode='x unified',
-            height=500,
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
-            )
+            title=title,
+            xaxis_title=x_title,
+            yaxis_title=y_title,
+            template='plotly_white'
         )
         
         return fig
-    
+        
     @staticmethod
-    def create_price_sensitivity_chart(scenarios):
-        """
-        Crée un graphique de sensibilité prix/occupation/revpar
+    def create_weekly_heatmap(df, title, z_title):
+        """Crée une heatmap hebdomadaire"""
+        # Préparer les données
+        df['weekday'] = pd.to_datetime(df['date']).dt.day_name()
+        df['hour'] = pd.to_datetime(df['date']).dt.hour
         
-        Args:
-            scenarios (pd.DataFrame): Résultats de l'analyse de scénarios
+        occupancy_col = next((col for col in ['occupancy_rate', 'occupancy'] if col in df.columns), None)
+        if occupancy_col:
+            pivot = pd.pivot_table(
+                df,
+                values=occupancy_col,
+                index='weekday',
+                columns='hour',
+                aggfunc='mean'
+            )
             
-        Returns:
-            plotly.graph_objects.Figure: Figure Plotly avec deux sous-graphiques
-        """
-        fig = make_subplots(
-            rows=1, cols=2,
-            subplot_titles=('RevPAR vs Prix', 'Occupation vs Prix'),
-            specs=[[{"secondary_y": False}, {"secondary_y": False}]]
-        )
+            fig = go.Figure(data=go.Heatmap(
+                z=pivot.values * 100,
+                x=pivot.columns,
+                y=pivot.index,
+                colorscale='Viridis'
+            ))
+            
+            fig.update_layout(
+                title=title,
+                xaxis_title='Jour de la semaine',
+                yaxis_title='Heure de la journée',
+                template='plotly_white'
+            )
+            
+            return fig
+        return None
         
-        # Graphique RevPAR
-        fig.add_trace(
-            go.Scatter(
-                x=scenarios['price'],
-                y=scenarios['revpar'],
-                mode='lines+markers',
-                name='RevPAR',
-                line=dict(color='green', width=3)
-            ),
-            row=1, col=1
-        )
+    @staticmethod
+    def create_price_occupancy_scatter(df, title, x_title, y_title):
+        """Crée un nuage de points prix/occupation"""
+        fig = go.Figure()
         
-        # Point de RevPAR maximum
-        optimal_idx = scenarios['revpar'].idxmax()
-        fig.add_trace(
-            go.Scatter(
-                x=[scenarios.loc[optimal_idx, 'price']],
-                y=[scenarios.loc[optimal_idx, 'revpar']],
+        occupancy_col = next((col for col in ['occupancy_rate', 'occupancy'] if col in df.columns), None)
+        if occupancy_col:
+            fig.add_trace(go.Scatter(
+                x=df['price'],
+                y=df[occupancy_col]*100,
                 mode='markers',
-                marker=dict(size=15, color='red', symbol='star'),
-                name='Optimum RevPAR'
-            ),
-            row=1, col=1
-        )
-        
-        # Graphique Occupation
-        fig.add_trace(
-            go.Scatter(
-                x=scenarios['price'],
-                y=scenarios['occupancy_rate']*100,
-                mode='lines+markers',
-                name='Occupation %',
-                line=dict(color='blue', width=3)
-            ),
-            row=1, col=2
-        )
-        
-        # Mise en forme
-        fig.update_xaxes(title_text="Prix (€)")
-        fig.update_yaxes(title_text="RevPAR (€)", row=1, col=1)
-        fig.update_yaxes(title_text="Occupation (%)", row=1, col=2)
+                name='Observations',
+                marker=dict(
+                    color='rgba(30, 136, 229, 0.8)',
+                    size=8
+                )
+            ))
         
         fig.update_layout(
-            height=400,
-            showlegend=True,
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.1,
-                xanchor="center",
-                x=0.5
-            )
+            title=title,
+            xaxis_title=x_title,
+            yaxis_title=y_title,
+            template='plotly_white'
         )
         
         return fig
-    
+        
     @staticmethod
-    def create_historical_trends_chart(historical_data):
-        """
-        Crée un graphique des tendances historiques
+    def create_revenue_forecast_chart(predictions_df, historical_df, title, y_title):
+        """Crée un graphique de prévision des revenus"""
+        fig = go.Figure()
         
-        Args:
-            historical_data (pd.DataFrame): Données historiques avec colonnes date, price, occupancy_rate
+        # Ajouter les données historiques si disponibles et contiennent la colonne 'revenue'
+        revenue_cols = ['revenue', 'actual_revenue', 'historical_revenue']
+        revenue_col = next((col for col in revenue_cols if col in (historical_df.columns if historical_df is not None else [])), None)
+        
+        if historical_df is not None and revenue_col:
+            fig.add_trace(go.Scatter(
+                x=historical_df['date'],
+                y=historical_df[revenue_col],
+                mode='lines',
+                name='Historique',
+                line=dict(color='rgba(180, 180, 180, 0.8)')
+            ))
+        
+        # Ajouter les prévisions
+        pred_revenue_cols = ['predicted_revenue', 'revenue_forecast', 'forecast_revenue']
+        pred_col = next((col for col in pred_revenue_cols if col in predictions_df.columns), None)
+        
+        if pred_col:
+            fig.add_trace(go.Scatter(
+                x=predictions_df['date'],
+                y=predictions_df[pred_col],
+                mode='lines',
+                name='Prévisions',
+                line=dict(color='rgba(30, 136, 229, 0.8)')
+            ))
+        
+        # Si aucune donnée n'est présente, ajouter une trace vide pour éviter une erreur
+        if not (revenue_col or pred_col):
+            fig.add_trace(go.Scatter(
+                x=[],
+                y=[],
+                mode='lines',
+                name='Pas de données disponibles',
+                line=dict(color='rgba(180, 180, 180, 0.8)')
+            ))
             
-        Returns:
-            plotly.graph_objects.Figure: Figure Plotly avec plusieurs sous-graphiques
-        """
-        df = historical_data.copy()
-        df['revpar'] = df['price'] * df['occupancy_rate']
-        
-        fig = make_subplots(
-            rows=3, cols=1,
-            subplot_titles=('Prix (€)', 'Occupation (%)', 'RevPAR (€)'),
-            vertical_spacing=0.08,
-            shared_xaxes=True
-        )
-        
-        # Prix
-        fig.add_trace(
-            go.Scatter(
-                x=df['date'],
-                y=df['price'],
-                mode='lines',
-                name='Prix',
-                line=dict(color='green')
-            ),
-            row=1, col=1
-        )
-        
-        # Ligne de moyenne mobile sur 7 jours pour le prix
-        fig.add_trace(
-            go.Scatter(
-                x=df['date'],
-                y=df['price'].rolling(window=7).mean(),
-                mode='lines',
-                name='Moyenne mobile (7j)',
-                line=dict(color='red', dash='dash')
-            ),
-            row=1, col=1
-        )
-        
-        # Occupation
-        fig.add_trace(
-            go.Scatter(
-                x=df['date'],
-                y=df['occupancy_rate']*100,
-                mode='lines',
-                name='Occupation',
-                line=dict(color='blue')
-            ),
-            row=2, col=1
-        )
-        
-        # Ligne de moyenne mobile sur 7 jours pour l'occupation
-        fig.add_trace(
-            go.Scatter(
-                x=df['date'],
-                y=df['occupancy_rate'].rolling(window=7).mean()*100,
-                mode='lines',
-                name='Moyenne mobile (7j)',
-                line=dict(color='orange', dash='dash'),
-                showlegend=False
-            ),
-            row=2, col=1
-        )
-        
-        # RevPAR
-        fig.add_trace(
-            go.Scatter(
-                x=df['date'],
-                y=df['revpar'],
-                mode='lines',
-                name='RevPAR',
-                line=dict(color='purple')
-            ),
-            row=3, col=1
-        )
-        
-        # Ligne de moyenne mobile sur 7 jours pour le RevPAR
-        fig.add_trace(
-            go.Scatter(
-                x=df['date'],
-                y=df['revpar'].rolling(window=7).mean(),
-                mode='lines',
-                name='Moyenne mobile (7j)',
-                line=dict(color='red', dash='dash'),
-                showlegend=False
-            ),
-            row=3, col=1
-        )
-        
-        # Mise en forme
         fig.update_layout(
-            height=800,
-            showlegend=True,
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
-            )
-        )
-        
-        # Mise à jour des axes y
-        fig.update_yaxes(title_text="Prix (€)", row=1, col=1)
-        fig.update_yaxes(title_text="Occupation (%)", row=2, col=1)
-        fig.update_yaxes(title_text="RevPAR (€)", row=3, col=1)
-        
-        return fig
-    
-    @staticmethod
-    def create_weekly_heatmap(historical_data):
-        """
-        Crée une heatmap de l'occupation par jour de la semaine et par mois
-        
-        Args:
-            historical_data (pd.DataFrame): Données historiques avec colonne date et occupancy_rate
-            
-        Returns:
-            plotly.graph_objects.Figure: Figure Plotly
-        """
-        df = historical_data.copy()
-        
-        # Extraction du jour de la semaine et du mois
-        df['day_of_week'] = df['date'].dt.day_name()
-        df['month'] = df['date'].dt.month_name()
-        
-        # Ordre des jours et des mois
-        day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-        month_order = ['January', 'February', 'March', 'April', 'May', 'June', 
-                      'July', 'August', 'September', 'October', 'November', 'December']
-        
-        # Agrégation des données
-        heatmap_data = df.groupby(['month', 'day_of_week'])['occupancy_rate'].mean().reset_index()
-        heatmap_data['occupancy_pct'] = (heatmap_data['occupancy_rate'] * 100).round(1)
-        
-        # Création de la heatmap
-        fig = px.imshow(
-            heatmap_data.pivot(
-                index='month', 
-                columns='day_of_week', 
-                values='occupancy_pct'
-            ).reindex(index=month_order, columns=day_order),
-            labels=dict(x="Jour de la semaine", y="Mois", color="Occupation (%)"),
-            aspect="auto",
-            color_continuous_scale='Viridis'
-        )
-        
-        # Ajout des valeurs dans les cellules
-        for i, row in enumerate(month_order):
-            for j, col in enumerate(day_order):
-                value = heatmap_data[
-                    (heatmap_data['month'] == row) & 
-                    (heatmap_data['day_of_week'] == col)
-                ]['occupancy_pct'].values
-                if len(value) > 0:
-                    fig.add_annotation(
-                        x=j, y=i,
-                        text=f"{value[0]:.0f}%",
-                        showarrow=False,
-                        font=dict(color='white' if value[0] > 50 else 'black', size=10)
-                    )
-        
-        # Mise en forme
-        fig.update_layout(
-            title="Heatmap d'occupation par jour et par mois",
-            xaxis_title="Jour de la semaine",
-            yaxis_title="Mois",
-            height=600
+            title=title,
+            xaxis_title='Date',
+            yaxis_title=y_title,
+            template='plotly_white'
         )
         
         return fig

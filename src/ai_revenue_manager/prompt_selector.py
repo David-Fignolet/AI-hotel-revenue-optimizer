@@ -1,8 +1,8 @@
 """
-Sélecteur automatique de prompts selon le contexte - Version corrigée
+Sélecteur automatique de prompts selon le contexte
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 class PromptSelector:
     """Sélectionne automatiquement le prompt optimal selon le contexte"""
@@ -17,24 +17,17 @@ class PromptSelector:
         Returns:
             Nom du template de prompt à utiliser
         """
-        
         # Debugging - afficher le contexte
         print(f"🔍 Debug - Événements: {context.get('special_events', [])}")
         print(f"🔍 Debug - Occupation: {context.get('current_occupancy', 'N/A')}")
         print(f"🔍 Debug - Gap prix: {context.get('price_gap', 'N/A')}")
         
         # 1. DÉTECTION DE CRISE (priorité la plus haute)
-        current_occupancy_str = context.get('current_occupancy', '100%')
-        try:
-            # Extraire le nombre de la chaîne (ex: "25.0%" -> 25.0)
-            current_occupancy = float(current_occupancy_str.rstrip('%'))
-            print(f"🔍 Debug - Occupation numérique: {current_occupancy}%")
-            
-            if current_occupancy < 30:
-                print("🚨 Détection: CRISE (occupation < 30%)")
-                return 'crisis_management'
-        except (ValueError, AttributeError):
-            print(f"⚠️ Debug - Erreur parsing occupation: {current_occupancy_str}")
+        current_occupancy = self._parse_percentage(context.get('current_occupancy', '0%'))
+        
+        if current_occupancy is not None and current_occupancy <= 30:
+            print("🚨 Détection: CRISE (occupation <= 30%)")
+            return 'crisis_management'
         
         # 2. DÉTECTION D'ÉVÉNEMENT SPÉCIAL
         special_events = context.get('special_events', [])
@@ -42,40 +35,56 @@ class PromptSelector:
         
         # Vérifier si il y a vraiment des événements
         has_events = (
-            (special_events and len(special_events) > 0 and special_events != []) or
-            (local_events and local_events.strip() and local_events.lower() not in ['aucun', 'none', ''])
+            (isinstance(special_events, list) and len(special_events) > 0 and special_events != []) or
+            (isinstance(local_events, str) and local_events.strip() and local_events.lower() not in ['aucun', 'none', ''])
         )
         
         if has_events:
             print(f"🎪 Détection: ÉVÉNEMENT (events: {special_events}, local: {local_events})")
             return 'special_event'
         
-        # 3. ANALYSE CONCURRENTIELLE (écart prix important)
-        try:
-            price_gap_str = context.get('price_gap', '0')
-            price_gap = float(price_gap_str.replace('+', '').replace('€', ''))
-            print(f"🔍 Debug - Gap prix numérique: {price_gap}€")
+        # 3. DÉTECTION DE GAP DE PRIX SIGNIFICATIF
+        price_gap = self._parse_price_gap(context.get('price_gap', '0'))
+        
+        print(f"🔍 Debug - Gap prix numérique: {price_gap}€")
+        
+        if price_gap is not None and abs(price_gap) >= 20:
+            print(f"💰 Détection: DIVERGENCE PRIX (gap: {price_gap}€)")
+            return 'price_gap'
             
-            if abs(price_gap) > 15:
-                print(f"🏪 Détection: CONCURRENCE (gap: {price_gap}€)")
-                return 'competitor_analysis'
-        except (ValueError, AttributeError):
-            print(f"⚠️ Debug - Erreur parsing price_gap: {context.get('price_gap')}")
-        
-        # 4. PLANIFICATION STRATÉGIQUE (horizon long terme)
-        planning_horizon = context.get('planning_horizon', '1 jour')
-        try:
-            if 'jour' in planning_horizon:
-                days = int(planning_horizon.split()[0])
-                if days > 30:
-                    print(f"📈 Détection: STRATÉGIQUE (horizon: {days} jours)")
-                    return 'strategic_planning'
-        except (ValueError, AttributeError):
-            pass
-        
-        # 5. ANALYSE QUOTIDIENNE par défaut
-        print("📊 Détection: QUOTIDIENNE (par défaut)")
+        # 4. ANALYSE QUOTIDIENNE PAR DÉFAUT
+        print("📊 Mode: ANALYSE QUOTIDIENNE")
         return 'daily_pricing'
+    
+    def _parse_percentage(self, value: str) -> Optional[float]:
+        """Parse une chaîne de pourcentage en float"""
+        if isinstance(value, (int, float)):
+            return float(value)
+            
+        if isinstance(value, str):
+            try:
+                return float(value.rstrip('%'))
+            except (ValueError, AttributeError):
+                print(f"⚠️ Debug - Erreur parsing pourcentage: {value}")
+                return None
+                
+        return None
+    
+    def _parse_price_gap(self, value: Any) -> Optional[float]:
+        """Parse une valeur de gap de prix en float"""
+        if isinstance(value, (int, float)):
+            return float(value)
+            
+        if isinstance(value, str):
+            try:
+                # Enlever le symbole € et autres caractères non numériques
+                cleaned = ''.join(c for c in value if c.isdigit() or c in '.-')
+                return float(cleaned)
+            except (ValueError, AttributeError):
+                print(f"⚠️ Debug - Erreur parsing gap prix: {value}")
+                return None
+                
+        return None
     
     def get_required_variables(self, prompt_type: str) -> list:
         """Retourne les variables requises pour un type de prompt"""

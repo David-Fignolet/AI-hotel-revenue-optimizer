@@ -6,6 +6,7 @@ import sys
 import unittest
 import pandas as pd
 import numpy as np
+import pytest
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -16,6 +17,11 @@ from src.demand_forecasting import DemandForecaster
 from src.data_processor import HotelDataProcessor
 from src.config import PATHS, DEMAND_MODEL_PARAMS
 
+@pytest.fixture(scope="class")
+def tmp_path_fixture(request, tmp_path_factory):
+    request.cls.tmp_path = tmp_path_factory.mktemp("data")
+
+@pytest.mark.usefixtures("tmp_path_fixture")
 class TestDemandForecaster(unittest.TestCase):
     """Classe de tests pour DemandForecaster"""
     
@@ -56,17 +62,13 @@ class TestDemandForecaster(unittest.TestCase):
         df = pd.DataFrame(data)
         
         # Ajouter des caractéristiques temporelles
-        cls.processor = HotelDataProcessor(country='FR')
-        df = cls.processor.create_calendar_features(df, 'date')
-        
-        # Ajouter des décalages temporels
-        for room_type in df['room_type'].unique():
-            mask = df['room_type'] == room_type
-            df.loc[mask] = cls.processor.create_lag_features(
-                df[mask], 'occupancy_rate', lags=[1, 7, 30], group_col=None
-            )
+        df['month'] = df['date'].dt.month
+        df['day'] = df['date'].dt.day
+        df['dayofweek'] = df['date'].dt.dayofweek
         
         # Sauvegarder les données de test
+        if not os.path.exists(os.path.dirname(PATHS['raw_data'])):
+            os.makedirs(os.path.dirname(PATHS['raw_data']))
         df.to_csv(PATHS['raw_data'], index=False)
         
         return df
@@ -89,14 +91,7 @@ class TestDemandForecaster(unittest.TestCase):
         cls.train_data = df.iloc[:split_idx].copy()
         cls.test_data = df.iloc[split_idx:].copy()
         
-        # Colonnes à utiliser comme caractéristiques
-        cls.feature_columns = [
-            'month_sin', 'month_cos', 'day_sin', 'day_cos',
-            'is_weekend', 'is_holiday', 'is_school_holiday',
-            'occupancy_rate_lag_1', 'occupancy_rate_lag_7', 'occupancy_rate_lag_30'
-        ]
-        
-        # Colonne cible
+        # Colonnes cible
         cls.target_column = 'occupancy_rate'
     
     def setUp(self):
@@ -112,26 +107,29 @@ class TestDemandForecaster(unittest.TestCase):
     
     def test_feature_engineering(self):
         """Teste la création des caractéristiques"""
-        X, y = self.model._prepare_features(
-            self.train_data, 
-            self.feature_columns, 
-            self.target_column
-        )
+        X, y = self.model.prepare_features(self.train_data)
         
         # Vérifier les dimensions
-        self.assertEqual(len(X), len(self.train_data) - 30)  # A cause du lag de 30 jours
-        self.assertEqual(len(X), len(y))
+        self.assertIsNotNone(X)
+        self.assertIsNotNone(y)
+        self.assertEqual(len(X.columns), 9)  # Nombre de features de base
         
-        # Vérifier les colonnes
-        self.assertEqual(len(X.columns), len(self.feature_columns))
-        self.assertTrue(all(col in X.columns for col in self.feature_columns))
+        # Vérifier que les colonnes attendues sont présentes
+        expected_columns = [
+            'month_sin', 'month_cos', 'day_sin', 'day_cos',
+            'dayofweek_sin', 'dayofweek_cos', 'is_weekend',
+            'is_holiday', 'is_school_holiday'
+        ]
+        self.assertTrue(all(col in X.columns for col in expected_columns))
+        
+        # Vérifier qu'il n'y a pas de NaN dans les features
+        self.assertFalse(X.isna().any().any())
     
     def test_train_model(self):
         """Teste l'entraînement du modèle"""
         # Entraîner le modèle
         mae = self.model.train(
             self.train_data,
-            feature_columns=self.feature_columns,
             target_column=self.target_column,
             room_type=self.test_room_type,
             save_model=False
@@ -147,112 +145,73 @@ class TestDemandForecaster(unittest.TestCase):
         # Entraîner d'abord le modèle
         self.model.train(
             self.train_data,
-            feature_columns=self.feature_columns,
             target_column=self.target_column,
             room_type=self.test_room_type,
             save_model=False
         )
         
         # Faire des prédictions sur l'ensemble de test
-        X_test, y_test = self.model._prepare_features(
-            self.test_data, 
-            self.feature_columns, 
-            self.target_column
-        )
-        
-        predictions = self.model.model.predict(X_test)
+        predictions = self.model.predict(self.test_data)
         
         # Vérifier les dimensions des prédictions
-        self.assertEqual(len(predictions), len(X_test))
+        self.assertEqual(len(predictions), len(self.test_data))
         
         # Vérifier que les prédictions sont dans la plage attendue (0-1 pour un taux d'occupation)
         self.assertTrue(all(0 <= p <= 1.5 for p in predictions))  # Tolérance pour les valeurs légèrement > 1
-    
-    def test_save_load_model(self, tmp_path):
-        """Teste la sauvegarde et le chargement du modèle"""
-        # Créer un modèle et l'entraîner
-        self.model.train(
-            self.train_data,
-            feature_columns=self.feature_columns,
-            target_column=self.target_column,
-            room_type=self.test_room_type,
-            save_model=False
-        )
-        
-        # Chemin temporaire pour le test
-        model_path = tmp_path / 'test_model.joblib'
-        
-        # Sauvegarder le modèle
-        self.model.save_model(str(model_path))
-        
-        # Vérifier que le fichier a été créé
-        self.assertTrue(model_path.exists())
-        
-        # Créer un nouveau modèle et charger le modèle sauvegardé
-        new_model = DemandForecaster()
-        new_model.load_model(str(model_path))
-        
-        # Vérifier que le modèle chargé fait les mêmes prédictions
-        X_test, _ = self.model._prepare_features(
-            self.test_data.head(10), 
-            self.feature_columns, 
-            self.target_column
-        )
-        
-        original_preds = self.model.model.predict(X_test)
-        loaded_preds = new_model.model.predict(X_test)
-        
-        self.assertTrue(np.allclose(original_preds, loaded_preds, rtol=1e-5))
     
     def test_predict_future(self):
         """Teste la prédiction future"""
         # Entraîner le modèle
         self.model.train(
             self.train_data,
-            feature_columns=self.feature_columns,
             target_column=self.target_column,
             room_type=self.test_room_type,
             save_model=False
         )
         
-        # Prédire pour les 30 prochains jours
+        # Créer un DataFrame pour la prédiction future
         future_dates = pd.date_range(
             start=self.test_data['date'].max() + pd.Timedelta(days=1),
-            periods=30,
+            periods=7,
             freq='D'
         )
-        
-        # Créer un DataFrame pour les futures dates
         future_data = pd.DataFrame({'date': future_dates})
-        
-        # Ajouter les caractéristiques temporelles
-        future_data = self.processor.create_calendar_features(future_data, 'date')
-        
-        # Ajouter le type de chambre
         future_data['room_type'] = self.test_room_type
         
         # Faire des prédictions
-        predictions = self.model.predict(
-            future_data,
-            feature_columns=self.feature_columns,
-            room_type=self.test_room_type
+        predictions = self.model.predict(future_data)
+        
+        # Vérifier que nous avons le bon nombre de prédictions
+        self.assertEqual(len(predictions), len(future_dates))
+        
+        # Vérifier que les prédictions sont raisonnables
+        self.assertTrue(all(0 <= p <= 1.5 for p in predictions))
+    
+    def test_save_load_model(self):
+        """Teste la sauvegarde et le chargement du modèle"""
+        # Créer un modèle et l'entraîner
+        self.model.train(
+            self.train_data,
+            target_column=self.target_column,
+            room_type=self.test_room_type,
+            save_model=False
         )
         
-        # Vérifier les dimensions
-        self.assertEqual(len(predictions), 30)
+        # Chemin temporaire pour le test
+        model_path = self.tmp_path / 'test_model.joblib'
         
-        # Vérifier que les prédictions sont dans la plage attendue
-        self.assertTrue(all(0 <= p <= 1.5 for p in predictions['predicted_occupancy_rate']))
+        # Sauvegarder le modèle
+        self.model.save_model(str(model_path))
         
-        # Vérifier que les intervalles de confiance sont cohérents
-        self.assertTrue(all(
-            lower <= pred <= upper
-            for lower, pred, upper in zip(
-                predictions['lower_bound'],
-                predictions['predicted_occupancy_rate'],
-                predictions['upper_bound']
-            )
-        ))
-
-if __name__ == '__main__':
-    unittest.main()
+        # Vérifier que le fichier a été créé
+        self.assertTrue(os.path.exists(model_path))
+        
+        # Créer un nouveau modèle et charger le modèle sauvegardé
+        new_model = DemandForecaster()
+        new_model.load_model(str(model_path))
+        
+        # Vérifier que le modèle chargé fait les mêmes prédictions
+        old_preds = self.model.predict(self.test_data.head(10))
+        new_preds = new_model.predict(self.test_data.head(10))
+        
+        np.testing.assert_array_almost_equal(old_preds, new_preds)

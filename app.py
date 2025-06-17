@@ -28,6 +28,10 @@ if 'revenue_manager' not in st.session_state:
 if 'competitor_data' not in st.session_state:
     st.session_state.competitor_data = None
 
+# Initialisation explicite de st.session_state.hotel_profile
+if 'hotel_profile' not in st.session_state:
+    st.session_state.hotel_profile = None
+
 def load_config() -> Dict[str, Any]:
     """Charge la configuration depuis le fichier YAML"""
     try:
@@ -42,7 +46,7 @@ def load_hotel_profile():
     try:
         from src.hotel_profile.hotel_config import HotelProfileManager
         manager = HotelProfileManager(str(HOTEL_PROFILE_PATH))
-        st.session_state.hotel_profile = manager.load_configuration()
+        st.session_state.hotel_profile = manager.get_hotel_info()
         st.success("Profil hôtelier chargé avec succès!")
         return True
     except Exception as e:
@@ -116,60 +120,45 @@ if menu == "Tableau de bord":
     st.title("📊 Tableau de bord - Revenue Manager IA")
     
     if st.session_state.hotel_profile:
-        hotel = st.session_state.hotel_profile
+        hotel = st.session_state.hotel_profile or {}
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.metric("Hôtel", hotel.name)
-            st.metric("Catégorie", f"{hotel.stars} ⭐ - {hotel.category}")
-            
+            st.metric("Hôtel", hotel.get('name', 'Nom indisponible'))
+            st.metric("Catégorie", f"{hotel.get('stars', 'N/A')} ⭐ - {hotel.get('category', 'N/A')}")
+        
         with col2:
-            st.metric("Chambres", hotel.total_rooms)
-            st.metric("Étages", hotel.total_floors)
-            
+            st.metric("Chambres", hotel.get('total_rooms', 'N/A'))
+            st.metric("Étages", hotel.get('total_floors', 'N/A'))
+        
         with col3:
-            st.metric("Check-in/out", f"{hotel.check_in_time} / {hotel.check_out_time}")
-            st.metric("Restaurants", hotel.restaurants)
+            st.metric("Adresse", f"{hotel.get('address', 'Adresse indisponible')}, {hotel.get('city', 'Ville indisponible')}")
+            st.metric("Contact", hotel.get('phone', 'Contact indisponible'))
+            if hotel.get('website'):
+                st.markdown(f"**Site web**: [{hotel.get('website')}]({hotel.get('website')})")
         
-        # Graphique des performances
-        st.subheader("📈 Performances récentes")
-        historical_data = generate_sample_historical_data()
-        
-        tab1, tab2, tab3 = st.tabs(["Taux d'occupation", "Prix moyen", "Revenu"])
-        
-        with tab1:
-            fig = px.line(
-                historical_data.tail(30), 
-                x='date', 
-                y='occupancy_rate',
-                title="Taux d'occupation (30 derniers jours)",
-                labels={'occupancy_rate': "Taux d'occupation", 'date': 'Date'}
-            )
-            fig.update_layout(yaxis_tickformat=".0%")
-            st.plotly_chart(fig, use_container_width=True)
+        # Display forecast reports
+        st.subheader("📈 Rapports Prévisionnels")
+        if 'forecast_reports' in st.session_state:
+            st.dataframe(st.session_state.forecast_reports)
+        else:
+            st.warning("Aucun rapport prévisionnel disponible.")
             
-        with tab2:
-            fig = px.line(
-                historical_data.tail(30), 
-                x='date', 
-                y='avg_daily_rate',
-                title="Prix moyen journalier (30 derniers jours)",
-                labels={'avg_daily_rate': "Prix moyen (€)", 'date': 'Date'}
-            )
-            st.plotly_chart(fig, use_container_width=True)
-            
-        with tab3:
-            fig = px.line(
-                historical_data.tail(30), 
-                x='date', 
-                y='revenue',
-                title="Revenu journalier (30 derniers jours)",
-                labels={'revenue': "Revenu (€)", 'date': 'Date'}
-            )
-            st.plotly_chart(fig, use_container_width=True)
-            
+        # Ajout de la fonctionnalité de téléversement de fichiers CSV
+        uploaded_file = st.file_uploader("Téléverser un rapport prévisionnel (CSV)", type="csv")
+        if uploaded_file is not None:
+            import pandas as pd
+            try:
+                # Lecture du fichier CSV
+                forecast_data = pd.read_csv(uploaded_file)
+                st.success("Rapport prévisionnel chargé avec succès !")
+                st.dataframe(forecast_data)
+            except Exception as e:
+                st.error(f"Erreur lors du chargement du fichier : {e}")
+        else:
+            st.info("Veuillez téléverser un fichier CSV pour afficher les données.")
     else:
-        st.warning("Veuillez initialiser le système dans la barre latérale")
+        st.error("Veuillez initialiser le système dans la barre latérale.")
 
 elif menu == "Analyse concurrentielle":
     st.title("🔍 Analyse Concurrentielle")
@@ -281,8 +270,8 @@ elif menu == "Recommandations IA":
                 hotel_data = {
                     'occupancy_rate': current_occupancy,
                     'current_price': current_price,
-                    'category': f"{hotel.stars} étoiles",
-                    'total_rooms': hotel.total_rooms
+                    'category': f"{hotel.get('stars', 'N/A')} étoiles",
+                    'total_rooms': hotel.get('total_rooms', 'N/A')
                 }
                 
                 market_data = {
@@ -294,28 +283,39 @@ elif menu == "Recommandations IA":
                 
                 historical_data = generate_sample_historical_data()
                 
-                # Obtenir les recommandations
-                analysis = manager.analyze_situation(
-                    hotel_data=hotel_data,
-                    market_data=market_data,
-                    historical_data=historical_data
-                )
+                # Ajout de vérifications robustes pour éviter les erreurs liées à NoneType
+                if hotel and isinstance(hotel, dict):
+                    category = f"{hotel.get('stars', 'N/A')} étoiles"
+                    total_rooms = hotel.get('total_rooms', 'N/A')
+                else:
+                    category = "N/A"
+                    total_rooms = "N/A"
+
+                # Vérification pour manager avant d'appeler analyze_situation
+                if manager:
+                    analysis = manager.analyze_situation(
+                        hotel_data=hotel_data,
+                        market_data=market_data,
+                        historical_data=historical_data
+                    )
+                else:
+                    analysis = None
                 
                 # Afficher les résultats
                 st.subheader("🎯 Recommandations IA")
                 
-                if 'price_recommendations' in analysis:
+                if analysis and 'price_recommendations' in analysis:
                     st.metric(
                         "Prix recommandé",
                         f"{analysis['price_recommendations'].get('standard', 'N/A')} €"
                     )
                 
-                if 'recommended_actions' in analysis:
+                if analysis and 'recommended_actions' in analysis:
                     st.subheader("✅ Actions recommandées")
                     for action in analysis.get('recommended_actions', []):
                         st.write(f"- {action}")
                 
-                if 'summary' in analysis:
+                if analysis and 'summary' in analysis:
                     st.subheader("📝 Analyse détaillée")
                     st.write(analysis.get('summary', 'Aucune analyse disponible'))
                 
@@ -328,7 +328,7 @@ elif menu == "Profil Hôtelier":
     if not st.session_state.hotel_profile:
         st.warning("Veuillez initialiser le système dans la barre latérale")
         st.stop
-        
+    
     hotel = st.session_state.hotel_profile
     
     # Affichage des informations de base
@@ -336,44 +336,50 @@ elif menu == "Profil Hôtelier":
     col1, col2 = st.columns(2)
     
     with col1:
-        st.metric("Nom", hotel.name)
-        if hotel.brand:
-            st.metric("Marque", hotel.brand)
-        st.metric("Catégorie", f"{hotel.stars} ⭐ - {hotel.category}")
+        # Ajout de vérifications robustes pour éviter les erreurs liées à NoneType
+        if hotel and isinstance(hotel, dict):
+            st.metric("Nom", hotel.get('name', 'Inconnu'))
+            if hotel.get('brand'):
+                st.metric("Marque", hotel.get('brand', 'Inconnu'))
+            st.metric("Catégorie", f"{hotel.get('stars', 'N/A')} ⭐ - {hotel.get('category', 'N/A')}")
         
     with col2:
-        st.metric("Adresse", f"{hotel.address}, {hotel.city}")
-        st.metric("Contact", f"{hotel.phone} | {hotel.email}")
-        if hotel.website:
-            st.markdown(f"**Site web**: [{hotel.website}]({hotel.website})")
+        if hotel and isinstance(hotel, dict):
+            st.metric("Adresse", f"{hotel.get('address', 'Inconnu')}, {hotel.get('city', 'Inconnu')}")
+            st.metric("Contact", f"{hotel.get('phone', 'Inconnu')} | {hotel.get('email', 'Inconnu')}")
+            if hotel.get('website'):
+                st.markdown(f"**Site web**: [{hotel.get('website')}]({hotel.get('website')})")
     
     # Types de chambres
     st.subheader("Types de chambres")
-    if hasattr(hotel, 'room_types') and hotel.room_types:
-        room_types = []
-        for rt in hotel.room_types:
-            room_types.append({
-                'Type': rt.name,
-                'Quantité': rt.total_count,
-                'Prix de base': f"{rt.base_price} €",
-                'Surface': f"{rt.size_sqm} m²",
-                'Occupation max': rt.max_occupancy
-            })
-        
-        st.dataframe(
-            pd.DataFrame(room_types),
-            use_container_width=True,
-            hide_index=True
-        )
+    if hotel and isinstance(hotel, dict):
+        if 'room_types' in hotel and hotel.get('room_types'):
+            room_types = []
+            for rt in hotel.get('room_types', []):
+                room_types.append({
+                    'Type': rt.get('name', 'Inconnu'),
+                    'Quantité': rt.get('total_count', 0),
+                    'Prix de base': f"{rt.get('base_price', 0)} €",
+                    'Surface': f"{rt.get('size_sqm', 0)} m²",
+                    'Occupation max': rt.get('max_occupancy', 1)
+                })
+            
+            st.dataframe(
+                pd.DataFrame(room_types),
+                use_container_width=True,
+                hide_index=True
+            )
+        else:
+            st.warning("Aucun type de chambre défini")
     else:
-        st.warning("Aucun type de chambre défini")
-    
+        st.warning("Les informations de l'hôtel sont manquantes ou invalides.")
+
     # Équipements
     st.subheader("Équipements")
-    if hasattr(hotel, 'amenities') and hasattr(hotel, 'facilities'):
-        amenities = hotel.amenages.copy() if hasattr(hotel, 'amenities') else []
-        if hasattr(hotel, 'facilities'):
-            for amenity, available in hotel.facilities.items():
+    if hotel and isinstance(hotel, dict):
+        amenities = hotel.get('amenities', []).copy() if 'amenities' in hotel else []
+        if 'facilities' in hotel:
+            for amenity, available in hotel.get('facilities', {}).items():
                 if available:
                     amenities.append(amenity.replace('_', ' ').title())
         
@@ -385,7 +391,7 @@ elif menu == "Profil Hôtelier":
         else:
             st.info("Aucun équipement défini")
     else:
-        st.warning("Informations sur les équipements non disponibles")
+        st.warning("Les informations sur les équipements sont manquantes ou invalides.")
 
 # Pied de page
 st.sidebar.markdown("---")

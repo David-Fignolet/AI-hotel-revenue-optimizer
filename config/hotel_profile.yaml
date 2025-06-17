@@ -1,0 +1,23 @@
+hotel:
+  name: Hotel de Rue Gay-Lussac
+  location:
+    address: Rue Gay-Lussac, 5th arrondissement, Paris, France
+    latitude: 48.8445
+    longitude: 2.3431
+  rooms:
+    total_rooms: 68
+    room_types:
+      - single
+      - double
+      - suite
+  description: |
+    Hôtel 3 étoiles de 68 chambres situé dans le 5ème arrondissement de Paris, à deux pas du Jardin du Luxembourg. Idéal pour clientèle affaires et loisirs. Parking, wifi, salle de réunion, petit-déjeuner buffet.
+  amenities:
+    - wifi
+    - parking
+    - breakfast
+    - meeting_room
+    - air_conditioning
+    - pets_allowed
+    - elevator
+    - accessible

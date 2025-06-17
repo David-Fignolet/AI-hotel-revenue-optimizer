@@ -1,0 +1,4 @@
+{
+  "filePath": "d:/PROJETS/AI-hotel-revenue-optimizer/config/hotel_profile.yaml",
+  "content": "hotel:\n  name: Hotel de Rue Gay-Lussac\n  location:\n    address: Rue Gay-Lussac, 5th arrondissement, Paris, France\n    latitude: 48.851623\n    longitude: 2.350792\n  rooms:\n    total_rooms: 68\n    room_types:\n      - single\n      - double\n      - suite"
+}
