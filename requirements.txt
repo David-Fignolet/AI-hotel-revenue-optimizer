@@ -1,13 +1,21 @@
 # Core
 streamlit>=1.22.0
 pandas>=1.5.0
+numpy>=1.21.0
 plotly>=5.11.0
 pyyaml>=6.0
 python-dotenv>=0.21.0
 
-# IA
+# IA et LLM
 langchain-ollama>=0.1.0
 ollama>=0.1.5
+fake-useragent>=1.1.1
+
+# Services externes
+aiohttp>=3.8.0
+requests>=2.28.0
+python-dateutil>=2.8.2
+geopy>=2.3.0  # Pour calculs de distance
 
 # Web scraping
 beautifulsoup4>=4.11.0

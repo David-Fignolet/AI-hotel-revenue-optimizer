@@ -1,4 +1,4 @@
-from langchain_community.llms import Ollama
+from langchain_ollama import OllamaLLM
 from langchain.prompts import ChatPromptTemplate
 from langchain.chains import LLMChain
 from typing import Dict, Any, List
@@ -19,7 +19,7 @@ class AIRevenueManager:
 
     def _initialize_llm(self):
         """Initialise le modèle Ollama localement"""
-        return Ollama(
+        return OllamaLLM(
             model=self.config.get('llm', {}).get('model', 'mistral:7b-instruct'),
             temperature=self.config.get('llm', {}).get('temperature', 0.7)
         )
